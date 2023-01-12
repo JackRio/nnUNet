@@ -17,12 +17,14 @@ from _warnings import warn
 from typing import Tuple
 
 import matplotlib
+import wandb
 from batchgenerators.utilities.file_and_folder_operations import *
-from nnunet.network_architecture.neural_network import SegmentationNetwork
 from sklearn.model_selection import KFold
 from torch import nn
 from torch.cuda.amp import GradScaler, autocast
 from torch.optim.lr_scheduler import _LRScheduler
+
+from nnunet.network_architecture.neural_network import SegmentationNetwork
 
 matplotlib.use("agg")
 from time import time, sleep
@@ -217,6 +219,7 @@ class NetworkTrainer(object):
             ax2.legend(loc=9)
 
             fig.savefig(join(self.output_folder, "progress.png"))
+            wandb.log({"progress_plot": fig})
             plt.close()
         except IOError:
             self.print_to_log_file("failed to plot: ", sys.exc_info())
@@ -436,6 +439,7 @@ class NetworkTrainer(object):
 
         while self.epoch < self.max_num_epochs:
             self.print_to_log_file("\nepoch: ", self.epoch)
+            wandb.log({"epoch": self.epoch})
             epoch_start_time = time()
             train_losses_epoch = []
 
@@ -458,6 +462,9 @@ class NetworkTrainer(object):
 
             self.all_tr_losses.append(np.mean(train_losses_epoch))
             self.print_to_log_file("train loss : %.4f" % self.all_tr_losses[-1])
+            wandb.log({
+                "train_loss": round(self.all_tr_losses[-1], 4)
+            })
 
             with torch.no_grad():
                 # validation with train=False
@@ -468,6 +475,9 @@ class NetworkTrainer(object):
                     val_losses.append(l)
                 self.all_val_losses.append(np.mean(val_losses))
                 self.print_to_log_file("validation loss: %.4f" % self.all_val_losses[-1])
+                wandb.log({
+                    "val_loss": round(self.all_val_losses[-1], 4)
+                    })
 
                 if self.also_val_in_tr_mode:
                     self.network.train()
@@ -512,6 +522,7 @@ class NetworkTrainer(object):
             else:
                 self.lr_scheduler.step(self.epoch + 1)
         self.print_to_log_file("lr is now (scheduler) %s" % str(self.optimizer.param_groups[0]['lr']))
+        wandb.log({"lr": float(self.optimizer.param_groups[0]['lr'])})
 
     def maybe_save_checkpoint(self):
         """

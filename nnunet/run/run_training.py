@@ -26,6 +26,8 @@ from nnunet.training.network_training.nnUNetTrainerCascadeFullRes import nnUNetT
 from nnunet.training.network_training.nnUNetTrainerV2_CascadeFullRes import nnUNetTrainerV2CascadeFullRes
 from nnunet.utilities.task_name_id_conversion import convert_id_to_task_name
 
+import wandb
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -98,6 +100,8 @@ def main():
                              'Optional. Beta. Use with caution.')
 
     args = parser.parse_args()
+    wandb_name = "_".join([args.network, args.network_trainer, args.p, args.task, args.fold])
+    wandb.init(project="subsolid_segmentation_nnunet", entity="aca_umc_ai_health", name=wandb_name)
 
     task = args.task
     fold = args.fold
@@ -202,4 +206,10 @@ def main():
 
 
 if __name__ == "__main__":
+    try:
+        with open("wandb_key.txt") as f:
+            key = f.read()
+        logged = wandb.login(key=key)
+    except FileNotFoundError:
+        print("No Wandb Key found")
     main()

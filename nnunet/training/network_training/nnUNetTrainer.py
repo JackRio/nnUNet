@@ -21,6 +21,7 @@ from time import sleep
 from typing import Tuple, List
 
 import matplotlib
+import wandb
 import numpy as np
 import torch
 from batchgenerators.utilities.file_and_folder_operations import *
@@ -715,6 +716,9 @@ class nnUNetTrainer(NetworkTrainer):
         self.print_to_log_file("Average global foreground Dice:", [np.round(i, 4) for i in global_dc_per_class])
         self.print_to_log_file("(interpret this as an estimate for the Dice of the different classes. This is not "
                                "exact.)")
+        global_dice_rounded = [np.round(i, 4) for i in global_dc_per_class]
+        wandb.log({"avg_global_dice_1": global_dice_rounded[0]})
+        wandb.log({"avg_global_dice_2": global_dice_rounded[1]})
 
         self.online_eval_foreground_dc = []
         self.online_eval_tp = []

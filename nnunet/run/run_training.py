@@ -101,6 +101,12 @@ def main():
 
     args = parser.parse_args()
     wandb_name = "_".join([args.network, args.network_trainer, args.p, args.task, args.fold])
+    try:
+        with open("wandb_key.txt") as f:
+            key = f.read()
+        logged = wandb.login(key=key)
+    except FileNotFoundError:
+        print("No Wandb Key found")
     wandb.init(project="subsolid_segmentation_nnunet", entity="aca_umc_ai_health", name=wandb_name)
 
     task = args.task
@@ -206,10 +212,4 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
-        with open("wandb_key.txt") as f:
-            key = f.read()
-        logged = wandb.login(key=key)
-    except FileNotFoundError:
-        print("No Wandb Key found")
     main()

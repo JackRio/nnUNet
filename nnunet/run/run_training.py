@@ -106,7 +106,7 @@ def main():
         logged = wandb.login(key=key)
     except FileNotFoundError:
         print("Key not found")
-    wandb_name = "_".join([args.network, args.network_trainer, args.p, args.task, args.fold])
+    wandb_name = "_".join([args.task, args.fold, args.network, args.network_trainer, args.p])
     wandb.init(project="subsolid_segmentation_nnunet", entity="aca_umc_ai_health", name=wandb_name)
 
     task = args.task

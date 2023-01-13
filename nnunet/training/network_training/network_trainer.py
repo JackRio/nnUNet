@@ -222,11 +222,11 @@ class NetworkTrainer(object):
             try:
                 print("Logging fig")
                 wandb_img = wandb.Image(fig)
-                wandb.log({"progress_plot": fig})
+                wandb.log({"progress_plot": wandb_img})
             except Exception:
                 print("Logging plt")
                 wandb_img = wandb.Image(plt)
-                wandb.log({"progress_plot": plt})
+                wandb.log({"progress_plot": wandb_img})
             plt.close()
         except IOError:
             self.print_to_log_file("failed to plot: ", sys.exc_info())

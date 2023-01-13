@@ -219,7 +219,14 @@ class NetworkTrainer(object):
             ax2.legend(loc=9)
 
             fig.savefig(join(self.output_folder, "progress.png"))
-            wandb.log({"progress_plot": fig})
+            try:
+                print("Logging fig")
+                wandb_img = wandb.Image(fig)
+                wandb.log({"progress_plot": fig})
+            except Exception:
+                print("Logging plt")
+                wandb_img = wandb.Image(plt)
+                wandb.log({"progress_plot": plt})
             plt.close()
         except IOError:
             self.print_to_log_file("failed to plot: ", sys.exc_info())

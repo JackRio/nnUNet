@@ -100,14 +100,6 @@ def main():
                              'Optional. Beta. Use with caution.')
 
     args = parser.parse_args()
-    try:
-        with open("/mnt/netcache/bodyct/experiments/subsolid_nodule_segm_nnunet/wandb_key.txt") as f:
-            key = f.read()
-        logged = wandb.login(key=key)
-    except FileNotFoundError:
-        print("Key not found")
-    wandb_name = "_".join([args.task, args.fold, args.network, args.network_trainer, args.p])
-    wandb.init(project="subsolid_segmentation_nnunet", entity="aca_umc_ai_health", name=wandb_name)
 
     task = args.task
     fold = args.fold
@@ -132,6 +124,17 @@ def main():
     # interp_order_z = args.interp_order_z
     # force_separate_z = args.force_separate_z
 
+    # Wandb Init
+    try:
+        with open("/mnt/netcache/bodyct/experiments/subsolid_nodule_segm_nnunet/wandb_key.txt") as f:
+            key = f.read()
+        wandb.login(key=key)
+    except FileNotFoundError:
+        print("Key not found")
+    wandb_name = "_".join([args.task, args.fold, args.network, args.network_trainer, args.p])
+    wandb.init(project="subsolid_segmentation_nnunet", entity="aca_umc_ai_health", name=wandb_name,
+               tags=[args.task, args.network_trainer, args.p])
+
     if not task.startswith("Task"):
         task_id = int(task)
         task = convert_id_to_task_name(task_id)
@@ -151,7 +154,7 @@ def main():
     #     raise ValueError("force_separate_z must be None, True or False. Given: %s" % force_separate_z)
 
     plans_file, output_folder_name, dataset_directory, batch_dice, stage, \
-    trainer_class = get_default_configuration(network, task, network_trainer, plans_identifier)
+        trainer_class = get_default_configuration(network, task, network_trainer, plans_identifier)
 
     if trainer_class is None:
         raise RuntimeError("Could not find trainer class in nnunet.training.network_training")

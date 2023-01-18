@@ -133,7 +133,7 @@ def main():
         print("Key not found")
     wandb_name = "_".join([args.task, args.fold, args.network, args.network_trainer, args.p])
     wandb.init(project="subsolid_segmentation_nnunet", entity="sanyog_v", name=wandb_name,
-               tags=[args.task, args.network_trainer, args.p])
+               tags=[args.task, args.network_trainer, args.p], resume=True)
 
     if not task.startswith("Task"):
         task_id = int(task)

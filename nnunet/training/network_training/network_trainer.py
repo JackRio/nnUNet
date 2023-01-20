@@ -525,7 +525,6 @@ class NetworkTrainer(object):
             else:
                 self.lr_scheduler.step(self.epoch + 1)
         self.print_to_log_file("lr is now (scheduler) %s" % str(self.optimizer.param_groups[0]['lr']))
-        wandb.log({"lr": float(self.optimizer.param_groups[0]['lr'])})
 
     def maybe_save_checkpoint(self):
         """

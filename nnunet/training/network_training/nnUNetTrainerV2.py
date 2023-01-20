@@ -18,6 +18,7 @@ from typing import Tuple
 
 import numpy as np
 import torch
+import wandb
 from nnunet.training.data_augmentation.data_augmentation_moreDA import get_moreDA_augmentation
 from nnunet.training.loss_functions.deep_supervision import MultipleOutputLoss2
 from nnunet.utilities.to_torch import maybe_to_torch, to_cuda
@@ -404,6 +405,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
             ep = epoch
         self.optimizer.param_groups[0]['lr'] = poly_lr(ep, self.max_num_epochs, self.initial_lr, 0.9)
         self.print_to_log_file("lr:", np.round(self.optimizer.param_groups[0]['lr'], decimals=6))
+        wandb.log({"lr": float(self.optimizer.param_groups[0]['lr'])})
 
     def on_epoch_end(self):
         """

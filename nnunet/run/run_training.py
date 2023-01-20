@@ -14,8 +14,8 @@
 
 
 import argparse
-import json
 
+import wandb
 from batchgenerators.utilities.file_and_folder_operations import *
 
 from nnunet.paths import default_plans_identifier
@@ -26,8 +26,6 @@ from nnunet.training.network_training.nnUNetTrainer import nnUNetTrainer
 from nnunet.training.network_training.nnUNetTrainerCascadeFullRes import nnUNetTrainerCascadeFullRes
 from nnunet.training.network_training.nnUNetTrainerV2_CascadeFullRes import nnUNetTrainerV2CascadeFullRes
 from nnunet.utilities.task_name_id_conversion import convert_id_to_task_name
-
-import wandb
 
 
 def main():
@@ -181,6 +179,16 @@ def main():
         trainer.save_latest_only = True  # if false it will not store/overwrite _latest but separate files each
 
     trainer.initialize(not validation_only)
+
+    # Updating run config
+    wandb.config.training_nodules = len(trainer.dataset_tr)
+    wandb.config.validation_nodules = len(trainer.dataset_val)
+    wandb.config.batch_size = trainer.batch_size
+    wandb.config.patch_size = trainer.patch_size
+    wandb.config.initialized = trainer.was_initialized
+    wandb.config.initial_lr = trainer.initial_lr
+    wandb.config.patience = trainer.patience
+    wandb.config.postprocessing_on_folds = not disable_postprocessing_on_folds
 
     if find_lr:
         trainer.find_lr()

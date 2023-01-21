@@ -14,6 +14,7 @@
 
 
 import argparse
+import json
 
 import wandb
 from batchgenerators.utilities.file_and_folder_operations import *
@@ -26,6 +27,27 @@ from nnunet.training.network_training.nnUNetTrainer import nnUNetTrainer
 from nnunet.training.network_training.nnUNetTrainerCascadeFullRes import nnUNetTrainerCascadeFullRes
 from nnunet.training.network_training.nnUNetTrainerV2_CascadeFullRes import nnUNetTrainerV2CascadeFullRes
 from nnunet.utilities.task_name_id_conversion import convert_id_to_task_name
+
+
+def wandb_init(args):
+    """
+        Initialize wandb config and runs
+    """
+    # Wandb Init
+    try:
+        with open("/mnt/netcache/bodyct/experiments/subsolid_nodule_segm_nnunet/wandb_key.txt") as f:
+            key = f.read()
+        wandb.login(key=key)
+    except FileNotFoundError:
+        print("Key not found")
+
+    trainer_kwargs = json.loads(args.trainer_kwargs.replace("\\", ""))
+    wandb_name = "_".join([args.task, args.fold, args.network, args.network_trainer, args.p])
+    wandb.init(id=wandb_name, project="subsolid_segmentation_nnunet", entity="sanyog_v", name=wandb_name,
+               tags=[args.task, args.network_trainer, args.p], resume=True)
+
+    for key, val in trainer_kwargs.items():
+        wandb.config[key] = val
 
 
 def main():
@@ -123,16 +145,7 @@ def main():
     # interp_order_z = args.interp_order_z
     # force_separate_z = args.force_separate_z
 
-    # Wandb Init
-    try:
-        with open("/mnt/netcache/bodyct/experiments/subsolid_nodule_segm_nnunet/wandb_key.txt") as f:
-            key = f.read()
-        wandb.login(key=key)
-    except FileNotFoundError:
-        print("Key not found")
-    wandb_name = "_".join([args.task, args.fold, args.network, args.network_trainer, args.p])
-    wandb.init(id=wandb_name, project="subsolid_segmentation_nnunet", entity="sanyog_v", name=wandb_name,
-               tags=[args.task, args.network_trainer, args.p], resume=True)
+    wandb_init(args=args)
 
     if not task.startswith("Task"):
         task_id = int(task)

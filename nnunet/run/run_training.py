@@ -14,7 +14,6 @@
 
 
 import argparse
-import json
 
 import wandb
 from batchgenerators.utilities.file_and_folder_operations import *
@@ -41,11 +40,10 @@ def wandb_init(args):
     except FileNotFoundError:
         print("Key not found")
 
-    trainer_kwargs = json.loads(args.trainer_kwargs.replace("\\", ""))
-    wandb_name = "_".join([args.task, args.fold, args.network, args.network_trainer, args.p])
-    wandb.init(id=wandb_name, project="subsolid_segmentation_nnunet", entity="sanyog_v", name=wandb_name,
+    wandb.init(id=args.wandb_name, project="subsolid_segmentation_nnunet", entity="sanyog_v", name=args.wandb_name,
                tags=[args.task, args.network_trainer, args.p], resume=True)
 
+    trainer_kwargs = json.loads(args.trainer_kwargs.replace("\\", ""))
     for key, val in trainer_kwargs.items():
         wandb.config[key] = val
 
@@ -119,6 +117,7 @@ def main():
                         help='path to nnU-Net checkpoint file to be used as pretrained model (use .model '
                              'file, for example model_final_checkpoint.model). Will only be used when actually training. '
                              'Optional. Beta. Use with caution.')
+    parser.add_argument('--wandb_name', type=str, required=True, help='Unique wandb name for the run')
 
     args = parser.parse_args()
 
@@ -194,6 +193,9 @@ def main():
     trainer.initialize(not validation_only)
 
     # Updating run config
+    wandb.config.network = args.network
+    wandb.config.network_trainer = args.network_trainer
+    wandb.config.plans = args.p
     wandb.config.training_nodules = len(trainer.dataset_tr)
     wandb.config.validation_nodules = len(trainer.dataset_val)
     wandb.config.batch_size = trainer.batch_size

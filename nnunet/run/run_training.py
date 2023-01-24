@@ -45,7 +45,7 @@ def wandb_init(args):
 
     trainer_kwargs = json.loads(args.trainer_kwargs.replace("\\", ""))
     for key, val in trainer_kwargs.items():
-        wandb.config[key] = val
+        wandb.config.update({f"{key}": f"{val}"}, allow_val_change=True)
 
 
 def main():

@@ -229,10 +229,6 @@ def main():
 
     trainer_teacher.initialize(not validation_only)
     trainer_student.initialize(not validation_only)
-    trainer_student.dl_tr = deepcopy(trainer_teacher.dl_tr)
-    trainer_student.dl_val = deepcopy(trainer_teacher.dl_val)
-    trainer_student.tr_gen = deepcopy(trainer_teacher.tr_gen)
-    trainer_student.val_gen = deepcopy(trainer_teacher.val_gen)
 
     # Initialize wandb and update config
     wandb_init(args=args)
@@ -261,6 +257,7 @@ def main():
                 pass
 
             # TODO: Do this part
+            trainer_teacher.student_trainer = trainer_student
             trainer_teacher.run_training()
 
         else:

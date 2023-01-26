@@ -35,6 +35,7 @@ class nnUNetTrainerV2_Teacher(nnUNetTrainerV2):
                  unpack_data=True, deterministic=True, fp16=False, **kwargs):
         super().__init__(plans_file, fold, output_folder, dataset_directory, batch_dice, stage, unpack_data,
                          deterministic, fp16)
+        self.student_trainer = None
 
     def initialize_network(self):
         if self.threeD:
@@ -58,7 +59,7 @@ class nnUNetTrainerV2_Teacher(nnUNetTrainerV2):
             self.network.cuda()
         self.network.inference_apply_nonlin = softmax_helper
 
-    def run_iteration(self, data_generator, do_backprop=True, run_online_evaluation=False):
+    def run_iteration(self, data_dict, do_backprop=True, run_online_evaluation=False):
         """
         gradient clipping improves training stability
 
@@ -67,7 +68,6 @@ class nnUNetTrainerV2_Teacher(nnUNetTrainerV2):
         :param run_online_evaluation:
         :return:
         """
-        data_dict = next(data_generator)
         data = data_dict['data']
         target = data_dict['target']
 
@@ -106,8 +106,11 @@ class nnUNetTrainerV2_Teacher(nnUNetTrainerV2):
             self.run_online_evaluation(output, target)
 
         del target
+        output = [output[i].argmax(axis=1).unsqueeze(dim=1) for i in range(len(output))]
+        if torch.cuda.is_available():
+            output = to_cuda(output)
 
-        return l.detach().cpu().numpy()
+        return l.detach().cpu().numpy(), output
 
     def run_training(self):
         """
@@ -118,9 +121,13 @@ class nnUNetTrainerV2_Teacher(nnUNetTrainerV2):
               :return:
               """
         self.maybe_update_lr(self.epoch)  # if we dont overwrite epoch then self.epoch+1 is used which is not what we
+        self.student_trainer.maybe_update_lr(self.epoch)
         # want at the start of the training
         ds = self.network.do_ds
+        ds_student = self.student_trainer.network.do_ds
         self.network.do_ds = True
+        self.student_trainer.network.do_ds = True
+
         if not torch.cuda.is_available():
             self.print_to_log_file(
                 "WARNING!!! You are attempting to run training on a CPU (torch.cuda.is_available() is False). This can be VERY slow!")
@@ -132,9 +139,12 @@ class nnUNetTrainerV2_Teacher(nnUNetTrainerV2):
             torch.cuda.empty_cache()
 
         self._maybe_init_amp()
+        self.student_trainer._maybe_init_amp()
 
         maybe_mkdir_p(self.output_folder)
+        maybe_mkdir_p(self.student_trainer.output_folder)
         self.plot_network_architecture()
+        self.student_trainer.plot_network_architecture()
 
         if cudnn.benchmark and cudnn.deterministic:
             warn("torch.backends.cudnn.deterministic is True indicating a deterministic training is desired. "
@@ -143,34 +153,53 @@ class nnUNetTrainerV2_Teacher(nnUNetTrainerV2):
 
         if not self.was_initialized:
             self.initialize(True)
+            self.student_trainer.initialize(True)
 
         while self.epoch < self.max_num_epochs:
             self.print_to_log_file("\nepoch: ", self.epoch)
             wandb.log({"epoch": self.epoch})
             epoch_start_time = time()
             train_losses_epoch = []
+            student_losses_epoch = []
 
             # train one epoch
             self.network.train()
+            self.student_trainer.network.train()
 
             if self.use_progress_bar:
                 with trange(self.num_batches_per_epoch) as tbar:
                     for b in tbar:
                         tbar.set_description("Epoch {}/{}".format(self.epoch + 1, self.max_num_epochs))
-
-                        l = self.run_iteration(self.tr_gen, True)
+                        data_dict = next(self.tr_gen)
+                        l, output = self.run_iteration(data_dict, True)
+                        self.student_trainer.teacher_output = output
+                        student_loss = self.student_trainer.run_iteration(data_dict, True)
 
                         tbar.set_postfix(loss=l)
                         train_losses_epoch.append(l)
+                        student_losses_epoch.append(student_loss)
+                        del data_dict
+                        del output
             else:
                 for _ in range(self.num_batches_per_epoch):
-                    l = self.run_iteration(self.tr_gen, True)
+                    data_dict = next(self.tr_gen)
+                    l, output = self.run_iteration(data_dict, True)
+                    self.student_trainer.teacher_output = output
+                    student_loss = self.student_trainer.run_iteration(data_dict, True)
+                    student_losses_epoch.append(student_loss)
                     train_losses_epoch.append(l)
+                    del data_dict
+                    del output
 
             self.all_tr_losses.append(np.mean(train_losses_epoch))
-            self.print_to_log_file("train loss : %.4f" % self.all_tr_losses[-1])
+            self.student_trainer.all_tr_losses.append(np.mean(student_losses_epoch))
+            self.print_to_log_file("train loss teacher : %.4f" % self.all_tr_losses[-1])
+            self.print_to_log_file("train loss student : %.4f" % self.student_trainer.all_tr_losses[-1])
             wandb.log({
-                "train_loss": round(self.all_tr_losses[-1], 4)
+                "train_loss_teacher": round(self.all_tr_losses[-1], 4)
+            })
+            wandb.log({
+                "train_loss_student": round(self.student_trainer.all_tr_losses[-1], 4)
             })
 
             with torch.no_grad():
@@ -197,12 +226,14 @@ class nnUNetTrainerV2_Teacher(nnUNetTrainerV2):
                     self.print_to_log_file("validation loss (train=True): %.4f" % self.all_val_losses_tr_mode[-1])
 
             self.update_train_loss_MA()  # needed for lr scheduler and stopping of training
+            self.student_trainer.update_train_loss_MA()  # needed for lr scheduler and stopping of training
 
             continue_training = self.on_epoch_end()
+            continue_training_student = self.student_trainer.on_epoch_end()
 
             epoch_end_time = time()
 
-            if not continue_training:
+            if not continue_training or not continue_training_student:
                 # allows for early stopping
                 break
 
@@ -211,14 +242,25 @@ class nnUNetTrainerV2_Teacher(nnUNetTrainerV2):
 
         self.epoch -= 1  # if we don't do this we can get a problem with loading model_final_checkpoint.
 
-        if self.save_final_checkpoint: self.save_checkpoint(join(self.output_folder, "model_final_checkpoint.model"))
+        if self.save_final_checkpoint:
+            self.save_checkpoint(join(self.output_folder, "model_final_checkpoint.model"))
         # now we can delete latest as it will be identical with final
         if isfile(join(self.output_folder, "model_latest.model")):
             os.remove(join(self.output_folder, "model_latest.model"))
         if isfile(join(self.output_folder, "model_latest.model.pkl")):
             os.remove(join(self.output_folder, "model_latest.model.pkl"))
 
+        if self.student_trainer.save_final_checkpoint:
+            self.student_trainer.save_checkpoint(
+                join(self.student_trainer.output_folder, "model_final_checkpoint.model"))
+        # now we can delete latest as it will be identical with final
+        if isfile(join(self.student_trainer.output_folder, "model_latest.model")):
+            os.remove(join(self.student_trainer.output_folder, "model_latest.model"))
+        if isfile(join(self.student_trainer.output_folder, "model_latest.model.pkl")):
+            os.remove(join(self.student_trainer.output_folder, "model_latest.model.pkl"))
+
         self.network.do_ds = ds
+        self.student_trainer.network.do_ds = ds_student
 
 
 class nnUNetTrainerV2_Student(nnUNetTrainerV2):
@@ -253,16 +295,15 @@ class nnUNetTrainerV2_Student(nnUNetTrainerV2):
             self.network.cuda()
         self.network.inference_apply_nonlin = softmax_helper
 
-    def run_iteration(self, data_generator, do_backprop=True, run_online_evaluation=False):
+    def run_iteration(self, data_dict, do_backprop=True, run_online_evaluation=False):
         """
                gradient clipping improves training stability
 
-               :param data_generator:
+               :param data_dict:
                :param do_backprop:
                :param run_online_evaluation:
                :return:
                """
-        data_dict = next(data_generator)
         data = data_dict['data']
         target = data_dict['target']
 

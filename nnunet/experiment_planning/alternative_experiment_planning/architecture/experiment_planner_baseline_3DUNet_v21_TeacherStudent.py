@@ -19,24 +19,26 @@ from nnunet.paths import *
 
 class ExperimentPlanner3D_v21_Teacher(ExperimentPlanner3D_v21):
     """
+        Experiment planner for Teacher network in the Teacher-Student architecture
     """
 
     def __init__(self, folder_with_cropped_data, preprocessed_output_folder):
         super(ExperimentPlanner3D_v21_Teacher, self).__init__(folder_with_cropped_data,
                                                               preprocessed_output_folder)
-        self.data_identifier = "nnUNetData_plans_v2.1_Teacher"
+        self.data_identifier = "nnUNetData_plans_v2.1_TeacherStudent"
         self.plans_fname = join(self.preprocessed_output_folder,
                                 "nnUNetPlansv2.1_Teacher_plans_3D.pkl")
 
 
 class ExperimentPlanner3D_v21_Student(ExperimentPlanner3D_v21):
     """
+        Experiment planner for Student network in the Teacher-Student architecture
     """
 
     def __init__(self, folder_with_cropped_data, preprocessed_output_folder):
         super(ExperimentPlanner3D_v21_Student, self).__init__(folder_with_cropped_data,
                                                               preprocessed_output_folder)
-        self.data_identifier = "nnUNetData_plans_v2.1_Student"
+        self.data_identifier = "nnUNetData_plans_v2.1_TeacherStudent"
         self.plans_fname = join(self.preprocessed_output_folder,
                                 "nnUNetPlansv2.1_Student_plans_3D.pkl")
         self.unet_base_num_features = 16

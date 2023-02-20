@@ -61,6 +61,6 @@ class GenericPreprocessor_CTSubSolid(GenericPreprocessor):
         for c in range(len(data)):
             # Check
             lower_bound = -600
-            upper_bound = 500
+            upper_bound = 200
             data[c] = np.clip(data[c], lower_bound, upper_bound)
         return data, seg, properties

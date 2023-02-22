@@ -718,7 +718,8 @@ class nnUNetTrainer(NetworkTrainer):
                                "exact.)")
         global_dice_rounded = [np.round(i, 4) for i in global_dc_per_class]
         wandb.log({"avg_global_dice_1": global_dice_rounded[0]})
-        wandb.log({"avg_global_dice_2": global_dice_rounded[1]})
+        if len(global_dice_rounded) > 1:
+            wandb.log({"avg_global_dice_2": global_dice_rounded[1]})
 
         self.online_eval_foreground_dc = []
         self.online_eval_tp = []

@@ -60,7 +60,10 @@ class GenericPreprocessor_CTSubSolid(GenericPreprocessor):
         # this is where the normalization takes place. We ignore use_nonzero_mask and normalization_scheme_per_modality
         for c in range(len(data)):
             # Check
-            lower_bound = -600
+            mean_intensity = self.intensityproperties[c]['mean']
+            std_intensity = self.intensityproperties[c]['sd']
+            lower_bound = -900
             upper_bound = 200
             data[c] = np.clip(data[c], lower_bound, upper_bound)
+            data[c] = (data[c] - mean_intensity) / std_intensity
         return data, seg, properties

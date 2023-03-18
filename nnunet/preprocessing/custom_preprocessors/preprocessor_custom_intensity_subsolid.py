@@ -62,8 +62,8 @@ class GenericPreprocessor_CTSubSolid(GenericPreprocessor):
             # Check
             mean_intensity = self.intensityproperties[c]['mean']
             std_intensity = self.intensityproperties[c]['sd']
-            lower_bound = -900
-            upper_bound = 200
+            lower_bound = -1000
+            upper_bound = 300
             data[c] = np.clip(data[c], lower_bound, upper_bound)
             data[c] = (data[c] - mean_intensity) / std_intensity
         return data, seg, properties

@@ -1,3 +1,6 @@
+from nnunet.experiment_planning.experiment_planner_baseline_3DUNet_v21 import ExperimentPlanner3D_v21
+from nnunet.paths import *
+
 class ExperimentPlanner3D_v21_Base(ExperimentPlanner3D_v21):
     """
         Experiment planner for Student network in the Teacher-Student architecture

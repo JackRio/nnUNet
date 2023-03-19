@@ -47,6 +47,7 @@ class nnUNetTrainerV2_BN(nnUNetTrainerV2):
         if torch.cuda.is_available():
             self.network.cuda()
         self.network.inference_apply_nonlin = softmax_helper
+        self.max_num_epochs = 400
 
 
 nnUNetTrainerV2_BN_copy1 = nnUNetTrainerV2_BN
